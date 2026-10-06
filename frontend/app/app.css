@@ -292,3 +292,9 @@ body {
   background: var(--bg-button-disabled);
   cursor: not-allowed;
 }
+
+.chat-thread-link-active {
+  background: var(--bg-hover);
+  font-weight: 600;
+  border-radius: 6px;
+}

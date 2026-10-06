@@ -1,4 +1,4 @@
-import { Link } from "react-router";
+import { Link, NavLink } from "react-router";
 
 function SidebarHeader() {
   return (
@@ -25,9 +25,16 @@ function ChatThreadItem({ id, title = "Untitled chat", onDeleteThread }) {
   return (
     <li className="chat-thread-item">
       <div className="chat-thread-item-content">
-        <Link to={`/chat/${id}`} className="chat-thread-link">
+                <NavLink
+          to={`/chat/${id}`}
+          className={({ isActive }) =>
+            isActive
+              ? "chat-thread-link chat-thread-link-active"
+              : "chat-thread-link"
+          }
+        >
           {title}
-        </Link>
+        </NavLink>
         <button
           type="button"
           className="delete-thread-btn"
