@@ -1,36 +1,88 @@
-import { useLoaderData } from "react-router";
+import { useActionData, useLoaderData } from "react-router";
 import { ChatMessages, ChatInput } from "../components/Chat";
 
-const mockMessages = [
-  { id: 1, type: "user", content: "Hello! Can you help me understand React Router v7?" },
-  { id: 2, type: "bot", content: "Of course! React Router v7 is the latest version that introduces several improvements including better data loading, enhanced nested routing, and improved TypeScript support. What specific aspect would you like to learn about?" },
-  { id: 3, type: "user", content: "How do nested routes work in v7?" },
-  { id: 4, type: "bot", content: "Nested routes in React Router v7 allow you to create hierarchical UI structures. You define parent routes that contain child routes, and use the <Outlet /> component to render child components. The parent route acts as a layout component that wraps its children." },
-  { id: 5, type: "user", content: "How do I handle data loading in React Router v7?" },
-  { id: 6, type: "bot", content: "React Router v7 provides excellent data loading capabilities through loader functions. You can define a loader for each route, which fetches data before the component renders." },
-];
+const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
+
+const headers = {
+  apikey: supabaseKey,
+  Authorization: `Bearer ${supabaseKey}`,
+};
 
 export async function clientLoader({ params }) {
-  // Fake delay, to simulate a slow database
-  await new Promise((resolve) => setTimeout(resolve, 500));
+  // 1. The thread itself (a GET always returns an array)
+  const threadResponse = await fetch(
+    `${supabaseUrl}/rest/v1/threads?select=*&id=eq.${params.threadId}`,
+    { headers },
+  );
 
-  // Today: mock data. Next time: Supabase, using params.threadId
-  return { threadId: params.threadId, messages: mockMessages };
+  if (!threadResponse.ok) {
+    throw new Error("Could not load thread");
+  }
+
+  const threads = await threadResponse.json();
+  const thread = threads[0];
+
+  if (!thread) {
+    throw new Response("Thread not found", { status: 404 });
+  }
+
+  // 2. The thread's messages, oldest first
+  const messagesResponse = await fetch(
+    `${supabaseUrl}/rest/v1/messages?select=*&thread_id=eq.${params.threadId}&order=created_at.asc`,
+    { headers },
+  );
+
+  if (!messagesResponse.ok) {
+    throw new Error("Could not load messages");
+  }
+
+  const messages = await messagesResponse.json();
+
+  return { thread, messages };
+}
+
+export async function clientAction({ params, request }) {
+  const formData = await request.formData();
+  const content = formData.get("message");
+
+  // Expected error: return it, so the user can fix it
+  if (!content || !content.trim()) {
+    return { error: "Message cannot be empty" };
+  }
+
+  const response = await fetch(`${supabaseUrl}/rest/v1/messages`, {
+    method: "POST",
+    headers: {
+      ...headers,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      thread_id: params.threadId,
+      type: "user",
+      content: content.trim(),
+    }),
+  });
+
+  if (!response.ok) {
+    return { error: "Could not send the message. Please try again." };
+  }
+
+  return { success: true };
 }
 
 export default function ChatThread() {
-  const { threadId, messages } = useLoaderData();
-
-  function addMessage(text) {
-    // Saving messages comes in DOB 8
-    console.log("Add message (not saved yet):", text);
-  }
+  const actionData = useActionData();
+  const { thread, messages } = useLoaderData();
 
   return (
     <div className="chat-container">
-      <h2>Thread #{threadId}</h2>
+      <h2>{thread.title}</h2>
       <ChatMessages messages={messages} />
-      <ChatInput onAddMessage={addMessage} />
+      {actionData?.error && (
+        <div className="error-message">{actionData.error}</div>
+      )}
+      <ChatInput />
     </div>
   );
 }

@@ -14,7 +14,7 @@ export async function clientLoader() {
     },
   });
 
-  if (!response.ok) {
+      if (!response.ok) {
     throw new Error("Could not load threads");
   }
 

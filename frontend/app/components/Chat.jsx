@@ -1,4 +1,5 @@
-import { useState } from "react";
+import { useEffect, useRef } from "react";
+import { Form, useNavigation } from "react-router";
 
 export function Message({ type = "bot", children }) {
   return (
@@ -20,42 +21,40 @@ export function ChatMessages({ messages = [] }) {
   );
 }
 
-export function ChatInput({ onAddMessage }) {
-  const [isSubmitting, setIsSubmitting] = useState(false);
+export function ChatInput() {
+  const navigation = useNavigation();
+  const isSubmitting = navigation.state === "submitting";
+  const formRef = useRef(null);
+  const wasSubmitting = useRef(false);
 
-  function handleSubmit(event) {
-    event.preventDefault();
-
-    const form = event.target;
-    const formData = new FormData(form);
-    const text = formData.get("message").trim();
-
-    if (!text) {
-      return;
+  // Clear the textarea once the message has been sent
+  useEffect(() => {
+    if (isSubmitting) {
+      wasSubmitting.current = true;
+    } else if (wasSubmitting.current) {
+      formRef.current?.reset();
+      wasSubmitting.current = false;
     }
-
-    onAddMessage(text);
-    form.reset();
-
-    setIsSubmitting(true);
-    setTimeout(() => {
-      setIsSubmitting(false);
-    }, 1000);
-  }
+  }, [isSubmitting]);
 
   return (
-    <form className="chat-input-container" onSubmit={handleSubmit}>
+    <Form
+      method="post"
+      className="chat-input-container"
+      ref={formRef}
+    >
       <div className="chat-input-wrapper">
         <textarea
           className="chat-input"
           name="message"
           placeholder="Type your message here..."
           rows="1"
+          required
         />
         <button className="send-button" type="submit" disabled={isSubmitting}>
           {isSubmitting ? "Sending..." : "Send"}
         </button>
       </div>
-    </form>
+    </Form>
   );
 }
